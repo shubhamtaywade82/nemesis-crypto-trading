@@ -59,6 +59,9 @@ jobs:
           DATABASE_URL: postgres://nemesis:nemesis_test@localhost:5432/nemesis_test
         run: cargo test --all -- --test-threads=1
 
+      - name: Copy Cargo.lock for audit
+        run: cp crates/Cargo.lock ./Cargo.lock
+
       - name: Security audit
         uses: rustsec/audit-check@v2
         with:
