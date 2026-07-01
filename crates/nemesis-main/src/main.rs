@@ -52,12 +52,12 @@ async fn main() -> Result<()> {
             tracing::warn!("🟡 MAINNET DRY-RUN MODE: Live data, paper execution");
         }
 
-        if !config.exchange.dry_run {
-            if std::env::var("NEMESIS_MAINNET_CONFIRM").unwrap_or_default() != "YES" {
-                anyhow::bail!(
-                    "Mainnet mode requires NEMESIS_MAINNET_CONFIRM=YES environment variable"
-                );
-            }
+        if !config.exchange.dry_run
+            && std::env::var("NEMESIS_MAINNET_CONFIRM").unwrap_or_default() != "YES"
+        {
+            anyhow::bail!(
+                "Mainnet mode requires NEMESIS_MAINNET_CONFIRM=YES environment variable"
+            );
         }
     }
 

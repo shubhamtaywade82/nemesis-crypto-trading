@@ -2,6 +2,7 @@ use reqwest::Client;
 use serde_json::json;
 use tracing::{error, warn};
 
+#[allow(dead_code)]
 pub struct AlertDispatcher {
     client: Client,
     webhook_url: Option<String>,

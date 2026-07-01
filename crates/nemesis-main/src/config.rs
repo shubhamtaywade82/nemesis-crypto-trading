@@ -9,6 +9,7 @@ pub struct AppConfig {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ExchangeConfig {
     pub name: String,
     pub api_key: String,

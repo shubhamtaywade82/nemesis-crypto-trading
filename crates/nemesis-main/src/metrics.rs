@@ -15,6 +15,7 @@ pub struct NemesisMetrics {
     pub ws_reconnections: IntCounterVec,
     pub reconciliation_drift: IntCounterVec,
     pub bar_build_latency_us: HistogramVec,
+    #[allow(dead_code)]
     pub active_positions: IntGaugeVec,
     pub kill_switch_active: IntGaugeVec,
 }
