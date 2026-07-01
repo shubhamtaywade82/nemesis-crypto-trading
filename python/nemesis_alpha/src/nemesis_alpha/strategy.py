@@ -45,35 +45,41 @@ class BaseStrategy:
 class ExampleMomentumStrategy(BaseStrategy):
     """Simple momentum strategy for demonstration."""
 
-    def __init__(self, symbol: str, lookback: int = 20):
+    def __init__(self, symbol: str, lookback: int = 20, threshold: float = 0.004):
         super().__init__(symbol)
         self.lookback = lookback
+        self.threshold = threshold
+        self._bar_history: list[ConsumedBar] = []
 
     async def on_bar(self, bar: ConsumedBar) -> bytes | None:
-        if len(self._bars) < self.lookback:
+        self._bar_history.append(bar)
+        if len(self._bar_history) > max(self.lookback * 2, 500):
+            self._bar_history = self._bar_history[-max(self.lookback * 2, 500):]
+
+        if len(self._bar_history) < self.lookback:
             return None
 
-        past_close = self._bars[-self.lookback].close
+        past_close = self._bar_history[-self.lookback].close
         momentum = (bar.close - past_close) / past_close
 
-        if momentum > 0.02:
+        if momentum > self.threshold:
             return self.emitter.build_signal(
                 symbol=self.symbol,
                 side=SignalSide.BUY,
                 signal_type=SignalType.MARKET,
                 price=None,
                 quantity=0.001,
-                confidence=min(abs(momentum) / 0.05, 1.0),
+                confidence=min(abs(momentum) / (self.threshold * 2), 1.0),
                 rationale=f"Momentum {momentum:.4f} over {self.lookback} bars",
             )
-        elif momentum < -0.02:
+        elif momentum < -self.threshold:
             return self.emitter.build_signal(
                 symbol=self.symbol,
                 side=SignalSide.SELL,
                 signal_type=SignalType.MARKET,
                 price=None,
                 quantity=0.001,
-                confidence=min(abs(momentum) / 0.05, 1.0),
+                confidence=min(abs(momentum) / (self.threshold * 2), 1.0),
                 rationale=f"Negative momentum {momentum:.4f} over {self.lookback} bars",
             )
 

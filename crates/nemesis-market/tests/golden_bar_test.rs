@@ -10,7 +10,7 @@ fn test_volume_bar_deterministic_replay() {
     let mut builder = BarBuilder::new(
         "BTCUSDT".into(),
         "test".into(),
-        BarConfig::VolumeBased { threshold: 100.0 },
+        BarConfig::VolumeBased { threshold: 5_500_000.0 },
     )
     .with_metrics(metrics);
 
@@ -42,6 +42,16 @@ fn test_volume_bar_deterministic_replay() {
         },
     ];
 
+    // Expected notionals (price * quantity):
+    //   tick 0:  60000.0 * 30  = 1_800_000  (buy)
+    //   tick 1:  60001.0 * 25  = 1_500_025  (sell)
+    //   tick 2:  59999.0 * 20  = 1_199_980  (buy)
+    //   tick 3:  60002.0 * 15  =   900_030  (buy)
+    //   tick 4:  60000.5 * 10  =   600_005  (sell)
+    // Total notional = 1_800_000 + 1_500_025 + 1_199_980 + 900_030 + 600_005 = 6_000_040
+    // buy_volume     = 1_800_000 + 1_199_980 + 900_030 = 3_900_010
+    // sell_volume    = 1_500_025 + 600_005 = 2_100_030
+
     let mut bars = Vec::new();
     for (i, tick) in ticks.iter().enumerate() {
         if let Some(envelope) =
@@ -56,16 +66,16 @@ fn test_volume_bar_deterministic_replay() {
     assert_eq!(
         bars.len(),
         1,
-        "Expected exactly 1 bar from 100-volume threshold"
+        "Expected exactly 1 bar from 10M-notional threshold"
     );
     let bar = &bars[0];
     assert!((bar.open - 60000.0).abs() < f64::EPSILON);
     assert!((bar.high - 60002.0).abs() < f64::EPSILON);
     assert!((bar.low - 59999.0).abs() < f64::EPSILON);
     assert!((bar.close - 60000.5).abs() < f64::EPSILON);
-    assert!((bar.volume - 100.0).abs() < f64::EPSILON);
-    assert!((bar.buy_volume - 65.0).abs() < f64::EPSILON);
-    assert!((bar.sell_volume - 35.0).abs() < f64::EPSILON);
+    assert!((bar.volume - 6_000_040.0).abs() < f64::EPSILON);
+    assert!((bar.buy_volume - 3_900_010.0).abs() < f64::EPSILON);
+    assert!((bar.sell_volume - 2_100_030.0).abs() < f64::EPSILON);
     assert!(!bar.is_corrupted);
 }
 
@@ -75,7 +85,7 @@ fn test_gap_detection_marks_corrupted() {
     let mut builder = BarBuilder::new(
         "BTCUSDT".into(),
         "test".into(),
-        BarConfig::VolumeBased { threshold: 1000.0 },
+        BarConfig::VolumeBased { threshold: 10_000_000.0 },
     )
     .with_metrics(metrics);
 

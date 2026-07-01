@@ -28,6 +28,8 @@ async def run_backtest(
         symbol=symbol,
         bar_config=bar_config,
         strategy_cls=ExampleMomentumStrategy,
+        lookback=20,
+        threshold=0.001,
     )
 
     metrics = compute_metrics(result)

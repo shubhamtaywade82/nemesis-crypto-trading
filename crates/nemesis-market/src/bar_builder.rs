@@ -31,10 +31,11 @@ struct FormingBar {
 
 impl FormingBar {
     fn new(tick: &MarketTick, seq: u64, exchange_ts: i64) -> Self {
+        let notional = tick.price * tick.quantity;
         let (buy_vol, sell_vol) = if tick.is_buyer_maker {
-            (0.0, tick.quantity)
+            (0.0, notional)
         } else {
-            (tick.quantity, 0.0)
+            (notional, 0.0)
         };
 
         Self {
@@ -42,7 +43,7 @@ impl FormingBar {
             high: tick.price,
             low: tick.price,
             close: tick.price,
-            volume: tick.quantity,
+            volume: notional,
             buy_volume: buy_vol,
             sell_volume: sell_vol,
             first_seq: seq,
@@ -52,16 +53,17 @@ impl FormingBar {
     }
 
     fn update(&mut self, tick: &MarketTick, seq: u64) {
+        let notional = tick.price * tick.quantity;
         self.high = self.high.max(tick.price);
         self.low = self.low.min(tick.price);
         self.close = tick.price;
-        self.volume += tick.quantity;
+        self.volume += notional;
         self.last_seq = seq;
 
         if tick.is_buyer_maker {
-            self.sell_volume += tick.quantity;
+            self.sell_volume += notional;
         } else {
-            self.buy_volume += tick.quantity;
+            self.buy_volume += notional;
         }
     }
 
