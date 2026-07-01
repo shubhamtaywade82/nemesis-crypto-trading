@@ -55,9 +55,7 @@ async fn main() -> Result<()> {
         if !config.exchange.dry_run
             && std::env::var("NEMESIS_MAINNET_CONFIRM").unwrap_or_default() != "YES"
         {
-            anyhow::bail!(
-                "Mainnet mode requires NEMESIS_MAINNET_CONFIRM=YES environment variable"
-            );
+            anyhow::bail!("Mainnet mode requires NEMESIS_MAINNET_CONFIRM=YES environment variable");
         }
     }
 
