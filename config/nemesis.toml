@@ -2,7 +2,8 @@
 name = "binance"
 api_key = "${BINANCE_API_KEY}"
 api_secret = "${BINANCE_API_SECRET}"
-testnet = false  # Mainnet enabled
+testnet = false   # Mainnet enabled
+dry_run = true    # Paper exchange with LIVE market data
 
 [[symbols]]
 symbol = "BTCUSDT"

@@ -1,4 +1,9 @@
+mod alerts;
 mod config;
+mod http_server;
+mod metrics;
+
+use std::sync::Arc;
 
 use anyhow::Result;
 use sqlx::postgres::PgPoolOptions;
@@ -9,12 +14,15 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 use nemesis_core::EventEnvelope;
 use nemesis_execution::{
-    persistence::PersistenceWriter, BinanceFutures, ExecutionEngine, Reconciler,
+    persistence::PersistenceWriter, BinanceFutures, ExecutionEngine, PaperExchange, Reconciler,
     RiskConfig as ExecRiskConfig,
 };
 use nemesis_market::{BarConfig, MarketIngester};
 
+use crate::alerts::AlertDispatcher;
 use crate::config::AppConfig;
+use crate::http_server::HttpServer;
+use crate::metrics::NemesisMetrics;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -40,10 +48,16 @@ async fn main() -> Result<()> {
             config.risk.max_daily_loss
         );
 
-        if std::env::var("NEMESIS_MAINNET_CONFIRM").unwrap_or_default() != "YES" {
-            anyhow::bail!(
-                "Mainnet mode requires NEMESIS_MAINNET_CONFIRM=YES environment variable"
-            );
+        if config.exchange.dry_run {
+            tracing::warn!("🟡 MAINNET DRY-RUN MODE: Live data, paper execution");
+        }
+
+        if !config.exchange.dry_run {
+            if std::env::var("NEMESIS_MAINNET_CONFIRM").unwrap_or_default() != "YES" {
+                anyhow::bail!(
+                    "Mainnet mode requires NEMESIS_MAINNET_CONFIRM=YES environment variable"
+                );
+            }
         }
     }
 
@@ -60,6 +74,18 @@ async fn main() -> Result<()> {
     info!("Database connected and migrated");
 
     let _writer = PersistenceWriter::new(pool.clone());
+
+    let metrics = Arc::new(NemesisMetrics::new());
+    let alert_dispatcher = AlertDispatcher::new(std::env::var("ALERT_WEBHOOK_URL").ok());
+
+    let http_addr = std::env::var("HTTP_ADDR").unwrap_or_else(|_| "0.0.0.0:9090".into());
+    let http_server = HttpServer::new(metrics.clone());
+    tokio::spawn(async move {
+        if let Err(e) = http_server.run(&http_addr).await {
+            error!(error = %e, "HTTP server failed");
+        }
+    });
+    info!(addr = %http_addr, "Metrics and health endpoints available");
 
     let (market_tx, mut market_rx) = mpsc::channel::<EventEnvelope>(10_000);
     let (exec_tx, _exec_rx) = mpsc::channel::<EventEnvelope>(1_000);
@@ -104,13 +130,22 @@ async fn main() -> Result<()> {
         max_daily_loss: config.risk.max_daily_loss,
         max_spread_bps: config.risk.max_spread_bps,
     };
-    let _exec_engine = ExecutionEngine::new(risk_config, exec_tx.clone());
 
-    let exchange = BinanceFutures::new(
-        config.exchange.api_key.clone(),
-        config.exchange.api_secret.clone(),
-        config.exchange.testnet,
-    );
+    let use_dry_run = config.exchange.dry_run;
+
+    let exchange: Box<dyn nemesis_execution::Exchange + Send + Sync> = if use_dry_run || config.exchange.testnet {
+        info!("Using PaperExchange for simulated execution");
+        Box::new(PaperExchange::new())
+    } else {
+        info!("Using BinanceFutures for live execution");
+        Box::new(BinanceFutures::new(
+            config.exchange.api_key.clone(),
+            config.exchange.api_secret.clone(),
+            config.exchange.testnet,
+        ))
+    };
+
+    let _exec_engine = ExecutionEngine::new(risk_config, exec_tx.clone());
     let reconciler = Reconciler::new(exchange, 60, exec_tx.clone());
 
     let recon_handle = tokio::spawn(async move {
@@ -118,7 +153,9 @@ async fn main() -> Result<()> {
     });
 
     let shutdown = async {
-        signal::ctrl_c().await.expect("Failed to install Ctrl+C handler");
+        signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
         info!("Shutdown signal received");
     };
 

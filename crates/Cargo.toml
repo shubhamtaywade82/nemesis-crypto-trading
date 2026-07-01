@@ -18,3 +18,7 @@ anyhow = "1"
 uuid = { version = "1", features = ["v7", "serde"] }
 async-trait = "0.1"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+axum = { version = "0.7", features = ["json"] }
+prometheus = "0.13"
+reqwest = { version = "0.12", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }

@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "title": "Nemesis Trading System",
+    "panels": [
+      {
+        "title": "Bars Processed / sec",
+        "type": "timeseries",
+        "targets": [{"expr": "rate(nemesis_bars_processed_total[1m])"}]
+      },
+      {
+        "title": "Corrupted Bars",
+        "type": "stat",
+        "targets": [{"expr": "increase(nemesis_bars_corrupted_total[5m])"}]
+      },
+      {
+        "title": "Orders Submitted vs Rejected",
+        "type": "timeseries",
+        "targets": [
+          {"expr": "rate(nemesis_orders_submitted_total[1m])"},
+          {"expr": "rate(nemesis_orders_rejected_total[1m])"}
+        ]
+      },
+      {
+        "title": "Kill Switch Status",
+        "type": "stat",
+        "targets": [{"expr": "nemesis_kill_switch_active"}],
+        "fieldConfig": {"defaults": {"mappings": [{"value": 0, "text": "NORMAL"}, {"value": 1, "text": "HALTED"}]}}
+      },
+      {
+        "title": "Bar Build Latency (p99)",
+        "type": "timeseries",
+        "targets": [{"expr": "histogram_quantile(0.99, rate(nemesis_bar_build_latency_us_bucket[1m]))"}]
+      },
+      {
+        "title": "WebSocket Reconnections",
+        "type": "stat",
+        "targets": [{"expr": "increase(nemesis_ws_reconnections_total[1h])"}]
+      }
+    ]
+  }
+}

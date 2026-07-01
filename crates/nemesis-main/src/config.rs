@@ -14,6 +14,8 @@ pub struct ExchangeConfig {
     pub api_key: String,
     pub api_secret: String,
     pub testnet: bool,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Deserialize)]

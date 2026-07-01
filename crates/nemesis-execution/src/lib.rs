@@ -9,5 +9,6 @@ pub mod risk;
 pub use engine::ExecutionEngine;
 pub use exchange::binance::BinanceFutures;
 pub use exchange::{Exchange, ExchangeError, NewOrder, OrderSide, OrderType};
+pub use paper_exchange::PaperExchange;
 pub use reconciler::Reconciler;
 pub use risk::RiskConfig;
