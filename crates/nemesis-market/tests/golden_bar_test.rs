@@ -14,7 +14,7 @@ fn test_volume_bar_deterministic_replay() {
     )
     .with_metrics(metrics);
 
-    let ticks = vec![
+    let ticks = [
         MarketTick {
             price: 60000.0,
             quantity: 30.0,

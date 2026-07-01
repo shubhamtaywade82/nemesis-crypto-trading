@@ -34,14 +34,13 @@ impl RateLimiter {
             }
 
             let current = self.tokens.load(Ordering::Relaxed);
-            if current > 0 {
-                if self
+            if current > 0
+                && self
                     .tokens
                     .compare_exchange(current, current - 1, Ordering::AcqRel, Ordering::Relaxed)
                     .is_ok()
-                {
-                    return;
-                }
+            {
+                return;
             }
 
             tokio::time::sleep(Duration::from_millis(100)).await;
