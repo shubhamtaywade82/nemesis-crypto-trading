@@ -8,6 +8,7 @@ pub struct AlertDispatcher {
     webhook_url: Option<String>,
 }
 
+#[allow(dead_code)]
 impl AlertDispatcher {
     pub fn new(webhook_url: Option<String>) -> Self {
         Self {
