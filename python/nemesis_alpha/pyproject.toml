@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nemesis-alpha"
+version = "0.1.0"
+dependencies = [
+    "protobuf>=4.25.0",
+    "grpcio-tools>=1.60.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

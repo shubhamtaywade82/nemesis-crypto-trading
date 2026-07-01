@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "nemesis-core",
+    "nemesis-market",
+    "nemesis-execution",
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+prost = "0.12"
+prost-types = "0.12"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+uuid = { version = "1", features = ["v7", "serde"] }

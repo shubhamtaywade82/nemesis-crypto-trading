@@ -1,0 +1,33 @@
+# Rust
+crates/target/
+**/*.rs.bk
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Protobuf generated (Python)
+python/nemesis_alpha/src/nemesis_alpha/proto/envelope_pb2.py
+python/nemesis_alpha/src/nemesis_alpha/proto/envelope_pb2.pyi
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log

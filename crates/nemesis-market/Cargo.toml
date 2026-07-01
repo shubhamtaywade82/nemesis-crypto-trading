@@ -1,0 +1,15 @@
+[package]
+name = "nemesis-market"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nemesis-core = { path = "../nemesis-core" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+pretty_assertions = "1"

@@ -1,0 +1,10 @@
+[package]
+name = "nemesis-execution"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nemesis-core = { path = "../nemesis-core" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }

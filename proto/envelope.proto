@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package nemesis.v1;
+
+// The universal wrapper for ALL events in the system
+message EventEnvelope {
+  string event_id = 1;         // UUIDv7 (time-sortable)
+  string source = 2;           // e.g., "binance-ws", "rust-bar-builder"
+  string symbol = 3;           // e.g., "BTCUSDT-PERP"
+  int64 exchange_ts_us = 4;    // Microseconds since epoch
+  int64 receive_ts_us = 5;     // Local server time in microseconds
+  uint64 sequence_num = 6;     // Monotonic ID for gap detection
+
+  oneof payload {
+    MarketTick tick = 10;
+    BookDelta delta = 11;
+    SessionStateChange session = 12;
+    BarClosed bar = 13;
+    TradeSignal signal = 14;
+    OrderEvent order = 15;
+  }
+}
+
+message MarketTick {
+  double price = 1;
+  double quantity = 2;
+  bool is_buyer_maker = 3; // false = aggressive buy, true = aggressive sell
+}
+
+enum SessionState {
+  STATE_UNKNOWN = 0;
+  CONTINUOUS_TRADING = 1;
+  HALTED = 2;
+  STALE_FEED = 3;
+  DISCONNECTED = 4;
+}
+
+message SessionStateChange {
+  SessionState new_state = 1;
+  string reason = 2;
+}
+
+message BarClosed {
+  enum BarType {
+    TIME_1M = 0;
+    VOLUME_100K_USDT = 1;
+  }
+  BarType type = 1;
+  double open = 2;
+  double high = 3;
+  double low = 4;
+  double close = 5;
+  double volume = 6;
+  double buy_volume = 7;
+  double sell_volume = 8;
+  uint64 first_seq = 9;
+  uint64 last_seq = 10;
+  bool is_corrupted = 11; // True if built from stale/gapped data
+}
+
+// Placeholder messages for future phases
+message BookDelta {}
+message TradeSignal {}
+message OrderEvent {}
