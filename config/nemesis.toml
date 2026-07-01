@@ -1,0 +1,20 @@
+[exchange]
+name = "binance"
+api_key = "${BINANCE_API_KEY}"
+api_secret = "${BINANCE_API_SECRET}"
+testnet = false  # Mainnet enabled
+
+[[symbols]]
+symbol = "BTCUSDT"
+ws_url = "wss://fstream.binance.com/ws"
+bar_type = "volume_100k"
+bar_param = 100000.0
+
+[risk]
+max_position_size = 0.01    # Micro: ~$600 notional
+max_daily_loss = 50.0       # Hard cap: $50/day max loss
+max_spread_bps = 5.0
+
+[logging]
+level = "info"
+format = "json"

@@ -3,6 +3,7 @@ members = [
     "nemesis-core",
     "nemesis-market",
     "nemesis-execution",
+    "nemesis-main",
 ]
 resolver = "2"
 

@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:v23.3.5
+    command:
+      - redpanda start
+      - --smp 1
+      - --memory 512M
+      - --overprovisioned
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://localhost:9092
+    ports:
+      - "9092:9092"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: nemesis
+      POSTGRES_USER: nemesis
+      POSTGRES_PASSWORD: nemesis_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - tsdb_data:/var/lib/postgresql/data
+
+volumes:
+  redpanda_data:
+  tsdb_data:
