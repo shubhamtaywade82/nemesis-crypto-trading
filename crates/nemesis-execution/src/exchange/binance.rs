@@ -4,9 +4,7 @@ use reqwest::Client;
 use sha2::Sha256;
 use tracing::debug;
 
-use super::{
-    AccountBalance, Exchange, ExchangeError, ExchangePosition, NewOrder, OrderSide, OrderType,
-};
+use super::{AccountBalance, Exchange, ExchangeError, ExchangePosition, NewOrder};
 use crate::rate_limiter::RateLimiter;
 use nemesis_core::OrderEvent;
 

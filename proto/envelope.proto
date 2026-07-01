@@ -60,5 +60,14 @@ message BarClosed {
 
 // Placeholder messages for future phases
 message BookDelta {}
-message TradeSignal {}
+
+message TradeSignal {
+  int32 side = 1;
+  int32 signal_type = 2;
+  double price = 3;
+  double quantity = 4;
+  double confidence = 5;
+  string rationale = 6;
+}
+
 message OrderEvent {}
