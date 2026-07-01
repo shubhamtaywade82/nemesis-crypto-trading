@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemesis
+  labels:
+    app: nemesis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nemesis
+  template:
+    metadata:
+      labels:
+        app: nemesis
+    spec:
+      serviceAccountName: nemesis-sa
+      containers:
+        - name: nemesis
+          image: ghcr.io/your-org/nemesis:latest
+          ports:
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: NEMESIS_CONFIG
+              value: /etc/nemesis/nemesis.toml
+            - name: EXCHANGE_SECRET_NAME
+              value: nemesis/binance/mainnet
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nemesis-db-creds
+                  key: url
+            - name: RUST_LOG
+              value: nemesis=info,tokio=warn
+            - name: LOG_FORMAT
+              value: json
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nemesis
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: nemesis-config

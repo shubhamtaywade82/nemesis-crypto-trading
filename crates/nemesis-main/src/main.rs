@@ -2,6 +2,7 @@ mod alerts;
 mod config;
 mod http_server;
 mod metrics;
+mod secrets;
 
 use std::sync::Arc;
 
@@ -33,8 +34,15 @@ async fn main() -> Result<()> {
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.logging.level));
 
-    match config.logging.format.as_str() {
-        "json" => fmt().json().with_env_filter(filter).init(),
+    let log_format = std::env::var("LOG_FORMAT").unwrap_or_else(|_| config.logging.format.clone());
+
+    match log_format.as_str() {
+        "json" => fmt()
+            .json()
+            .with_current_span(true)
+            .with_span_list(true)
+            .with_env_filter(filter)
+            .init(),
         _ => fmt().pretty().with_env_filter(filter).init(),
     }
 
@@ -58,6 +66,19 @@ async fn main() -> Result<()> {
             anyhow::bail!("Mainnet mode requires NEMESIS_MAINNET_CONFIRM=YES environment variable");
         }
     }
+
+    // Resolve secrets: Secrets Manager when config has placeholder, else local dev fallback
+    let exchange_secrets = if config.exchange.api_key.starts_with("${") {
+        let sm = secrets::SecretsManager::new().await?;
+        let secret_name = std::env::var("EXCHANGE_SECRET_NAME")
+            .unwrap_or_else(|_| "nemesis/binance/mainnet".into());
+        sm.get_exchange_secrets(&secret_name).await?
+    } else {
+        secrets::ExchangeSecrets {
+            api_key: config.exchange.api_key.clone(),
+            api_secret: config.exchange.api_secret.clone(),
+        }
+    };
 
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://nemesis:nemesis_dev@localhost:5432/nemesis".into());
@@ -136,8 +157,8 @@ async fn main() -> Result<()> {
         } else {
             info!("Using BinanceFutures for live execution");
             Box::new(BinanceFutures::new(
-                config.exchange.api_key.clone(),
-                config.exchange.api_secret.clone(),
+                exchange_secrets.api_key,
+                exchange_secrets.api_secret,
                 config.exchange.testnet,
             ))
         };
