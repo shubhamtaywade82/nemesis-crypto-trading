@@ -18,7 +18,7 @@ BAR_CONFIG = {"type": "volume_100k", "threshold": 100000.0}
 PARAM_GRID = {
     "lookback": [15, 20, 30, 40, 60],
     "z_threshold": [1.5, 2.0, 2.5, 3.0],
-    "momentum_divergence": [0.003, 0.005, 0.008, 0.012],
+    "momentum_divergence": [0.0005, 0.001, 0.0015, 0.002],
 }
 
 IN_SAMPLE_PCT = 0.7
