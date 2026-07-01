@@ -13,11 +13,13 @@ from nemesis_alpha.backtest_engine import BacktestEngine
 from nemesis_alpha.analytics import compute_metrics
 from nemesis_alpha.strategy import ExampleMomentumStrategy
 from nemesis_alpha.ofi_strategy import OFIMeanReversionStrategy
+from nemesis_alpha.liquidity_sweep_strategy import LiquiditySweepStrategy
 
 
 STRATEGY_MAP = {
     "momentum": ExampleMomentumStrategy,
     "ofi_mean_reversion": OFIMeanReversionStrategy,
+    "liquidity_sweep": LiquiditySweepStrategy,
 }
 
 
@@ -28,6 +30,7 @@ async def run_backtest(
     bar_param: float,
     rust_binary: str,
     strategy_name: str,
+    strategy_kwargs: dict | None = None,
 ) -> None:
     bar_config: dict = {"type": bar_type}
     if bar_type == "volume_100k":
@@ -36,6 +39,7 @@ async def run_backtest(
         bar_config["interval_secs"] = int(bar_param)
 
     strategy_cls = STRATEGY_MAP[strategy_name]
+    kwargs = strategy_kwargs or {}
 
     engine = BacktestEngine(rust_binary)
     result = await engine.run(
@@ -43,6 +47,7 @@ async def run_backtest(
         symbol=symbol,
         bar_config=bar_config,
         strategy_cls=strategy_cls,
+        **kwargs,
     )
 
     metrics = compute_metrics(result)
@@ -93,7 +98,9 @@ if __name__ == "__main__":
                         help="Volume threshold (USDT) or time interval (seconds)")
     parser.add_argument("--rust-binary", default="../../crates/target/release/nemesis-backtest")
     parser.add_argument("--strategy", choices=list(STRATEGY_MAP.keys()), default="momentum",
-                        help="Strategy class to use")
+                        help=f"Strategy class to use ({', '.join(STRATEGY_MAP.keys())})")
+    parser.add_argument("--strategy-kwargs", type=json.loads, default={},
+                        help='JSON dict of strategy kwargs, e.g. \'{"sweep_pct": 0.0005, "vol_ratio": 1.2}\'')
     args = parser.parse_args()
 
     if sys.platform == "win32" and not args.rust_binary.endswith(".exe"):
@@ -112,4 +119,5 @@ if __name__ == "__main__":
         bar_param=args.bar_param,
         rust_binary=args.rust_binary,
         strategy_name=args.strategy,
+        strategy_kwargs=args.strategy_kwargs,
     ))
