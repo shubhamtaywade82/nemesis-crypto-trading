@@ -13,6 +13,8 @@ env:
 jobs:
   rust-ci:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
     services:
       postgres:
         image: timescale/timescaledb:latest-pg16
