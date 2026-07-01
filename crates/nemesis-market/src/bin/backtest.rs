@@ -1,79 +1,95 @@
-use std::io::{self, Read, Write};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::sync::Arc;
 
-use nemesis_core::EventEnvelope;
-use nemesis_market::{BarBuilder, BarConfig};
 use prost::Message;
+use serde::Deserialize;
+
+use nemesis_core::MarketTick;
+use nemesis_core::NoopMetrics;
+use nemesis_market::{BarBuilder, BarConfig};
+
+#[derive(Deserialize)]
+struct BacktestConfig {
+    symbol: String,
+    bar_config: BarConfigParams,
+    input_file: String,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+enum BarConfigParams {
+    #[serde(rename = "time_1m")]
+    Time1m { interval_secs: u64 },
+    #[serde(rename = "volume_100k")]
+    Volume100k { threshold: f64 },
+}
 
 fn main() -> anyhow::Result<()> {
     let mut config_str = String::new();
-    io::stdin().read_to_string(&mut config_str)?;
-    let config: serde_json::Value = serde_json::from_str(&config_str)?;
+    io::stdin().lock().read_line(&mut config_str)?;
+    let config: BacktestConfig = serde_json::from_str(&config_str)?;
 
-    let symbol = config["symbol"]
-        .as_str()
-        .unwrap_or("BTCUSDT-PERP")
-        .to_string();
-    let bar_type = config["bar_config"]["type"]
-        .as_str()
-        .unwrap_or("volume_100k");
-
-    let bar_config = match bar_type {
-        "time_1m" => BarConfig::TimeBased { interval_secs: 60 },
-        "volume_100k" => {
-            let threshold = config["bar_config"]["threshold"]
-                .as_f64()
-                .unwrap_or(100_000.0);
-            BarConfig::VolumeBased { threshold }
-        }
-        _ => anyhow::bail!("Unknown bar type: {}", bar_type),
+    let bar_config = match config.bar_config {
+        BarConfigParams::Time1m { interval_secs } => BarConfig::TimeBased { interval_secs },
+        BarConfigParams::Volume100k { threshold } => BarConfig::VolumeBased { threshold },
     };
 
-    let mut builder = BarBuilder::new(symbol, "backtest".into(), bar_config);
+    let metrics = Arc::new(NoopMetrics);
+    let mut builder =
+        BarBuilder::new(config.symbol, "backtest".into(), bar_config).with_metrics(metrics);
 
-    let input_file = config["input_file"].as_str();
-    if let Some(path) = input_file {
-        let content = std::fs::read_to_string(path)?;
-        for line in content.lines() {
-            if line.trim().is_empty() {
-                continue;
-            }
-            let tick: serde_json::Value = serde_json::from_str(line)?;
-            let price = tick["price"].as_f64().unwrap_or(0.0);
-            let quantity = tick["quantity"].as_f64().unwrap_or(0.0);
-            let is_buyer_maker = tick["is_buyer_maker"].as_bool().unwrap_or(false);
-            let seq = tick["seq"].as_u64().unwrap_or(0);
-            let ts_us = tick["ts_us"].as_i64().unwrap_or(0);
-
-            let market_tick = nemesis_core::MarketTick {
-                price,
-                quantity,
-                is_buyer_maker,
-            };
-
-            if let Some(envelope) = builder.on_tick(&market_tick, seq, ts_us) {
-                write_envelope(&envelope)?;
-            }
-        }
-    } else {
-        let mut buf = Vec::new();
-        io::stdin().read_to_end(&mut buf)?;
-    }
-
-    if let Some(envelope) = builder.force_close("end-of-input") {
-        write_envelope(&envelope)?;
-    }
-
-    Ok(())
-}
-
-fn write_envelope(envelope: &EventEnvelope) -> anyhow::Result<()> {
-    let mut buf = Vec::new();
-    envelope.encode(&mut buf)?;
-    let len = (buf.len() as u32).to_be_bytes();
+    let file = File::open(&config.input_file)?;
+    let reader = BufReader::new(file);
     let stdout = io::stdout();
-    let mut handle = stdout.lock();
-    handle.write_all(&len)?;
-    handle.write_all(&buf)?;
-    handle.flush()?;
+    let mut out = BufWriter::new(stdout.lock());
+
+    let mut tick_count: u64 = 0;
+    let mut bar_count: u64 = 0;
+
+    for line in reader.lines() {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.len() != 4 {
+            continue;
+        }
+
+        let tick = MarketTick {
+            price: parts[1].parse()?,
+            quantity: parts[2].parse()?,
+            is_buyer_maker: parts[3].parse::<bool>()?,
+        };
+        let ts_us: i64 = parts[0].parse()?;
+        tick_count += 1;
+
+        if let Some(envelope) = builder.on_tick(&tick, tick_count, ts_us) {
+            let mut buf = Vec::with_capacity(envelope.encoded_len());
+            envelope.encode(&mut buf)?;
+
+            let len = (buf.len() as u32).to_be_bytes();
+            out.write_all(&len)?;
+            out.write_all(&buf)?;
+            bar_count += 1;
+        }
+    }
+
+    if let Some(envelope) = builder.force_close("end_of_file") {
+        let mut buf = Vec::with_capacity(envelope.encoded_len());
+        envelope.encode(&mut buf)?;
+        let len = (buf.len() as u32).to_be_bytes();
+        out.write_all(&len)?;
+        out.write_all(&buf)?;
+        bar_count += 1;
+    }
+
+    out.flush()?;
+    eprintln!(
+        "Replay complete: {} ticks -> {} bars",
+        tick_count, bar_count
+    );
     Ok(())
 }
