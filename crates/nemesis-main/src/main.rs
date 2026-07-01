@@ -1,13 +1,17 @@
 mod config;
 
 use anyhow::Result;
+use sqlx::postgres::PgPoolOptions;
 use tokio::signal;
 use tokio::sync::mpsc;
 use tracing::{error, info};
 use tracing_subscriber::{fmt, EnvFilter};
 
 use nemesis_core::EventEnvelope;
-use nemesis_execution::{BinanceFutures, ExecutionEngine, Reconciler, RiskConfig as ExecRiskConfig};
+use nemesis_execution::{
+    persistence::PersistenceWriter, BinanceFutures, ExecutionEngine, Reconciler,
+    RiskConfig as ExecRiskConfig,
+};
 use nemesis_market::{BarConfig, MarketIngester};
 
 use crate::config::AppConfig;
@@ -42,6 +46,20 @@ async fn main() -> Result<()> {
             );
         }
     }
+
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://nemesis:nemesis_dev@localhost:5432/nemesis".into());
+
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect(&database_url)
+        .await?;
+
+    sqlx::migrate!("../../migrations").run(&pool).await?;
+
+    info!("Database connected and migrated");
+
+    let _writer = PersistenceWriter::new(pool.clone());
 
     let (market_tx, mut market_rx) = mpsc::channel::<EventEnvelope>(10_000);
     let (exec_tx, _exec_rx) = mpsc::channel::<EventEnvelope>(1_000);

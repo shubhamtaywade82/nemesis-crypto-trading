@@ -17,3 +17,4 @@ tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 serde = { workspace = true }
 toml = "0.8"
 anyhow = { workspace = true }
+sqlx = { workspace = true, features = ["migrate"] }

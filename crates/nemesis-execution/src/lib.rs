@@ -1,6 +1,7 @@
 pub mod engine;
 pub mod exchange;
 pub mod paper_exchange;
+pub mod persistence;
 pub mod rate_limiter;
 pub mod reconciler;
 pub mod risk;
