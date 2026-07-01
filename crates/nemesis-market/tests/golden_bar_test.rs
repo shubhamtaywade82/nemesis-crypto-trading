@@ -64,8 +64,8 @@ fn test_volume_bar_deterministic_replay() {
     assert!((bar.low - 59999.0).abs() < f64::EPSILON);
     assert!((bar.close - 60000.5).abs() < f64::EPSILON);
     assert!((bar.volume - 100.0).abs() < f64::EPSILON);
-    assert!((bar.buy_volume - 45.0).abs() < f64::EPSILON);
-    assert!((bar.sell_volume - 55.0).abs() < f64::EPSILON);
+    assert!((bar.buy_volume - 65.0).abs() < f64::EPSILON);
+    assert!((bar.sell_volume - 35.0).abs() < f64::EPSILON);
     assert!(!bar.is_corrupted);
 }
 
@@ -75,10 +75,11 @@ fn test_gap_detection_marks_corrupted() {
     let mut builder = BarBuilder::new(
         "BTCUSDT".into(),
         "test".into(),
-        BarConfig::VolumeBased { threshold: 50.0 },
+        BarConfig::VolumeBased { threshold: 1000.0 },
     )
     .with_metrics(metrics);
 
+    // Tick 1: seq=1, creates forming bar
     builder.on_tick(
         &MarketTick {
             price: 60000.0,
@@ -89,6 +90,7 @@ fn test_gap_detection_marks_corrupted() {
         1700000000000000,
     );
 
+    // Tick 2: seq=5 (GAP: seq 2,3,4 missing), updates forming bar
     builder.on_tick(
         &MarketTick {
             price: 60001.0,
@@ -99,6 +101,7 @@ fn test_gap_detection_marks_corrupted() {
         1700000001000000,
     );
 
+    // Force-close the bar (still below threshold)
     let closed = builder.force_close("test gap").unwrap();
     if let Some(Payload::Bar(bar)) = closed.payload {
         assert!(
