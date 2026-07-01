@@ -58,6 +58,8 @@ class BacktestEngine:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        assert proc.stdin is not None
+        assert proc.stdout is not None
         proc.stdin.write(config_json.encode())
         await proc.stdin.drain()
         proc.stdin.close()
