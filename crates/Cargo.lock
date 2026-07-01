@@ -722,9 +722,13 @@ name = "nemesis-execution"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "nemesis-core",
+ "serde",
+ "thiserror",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
