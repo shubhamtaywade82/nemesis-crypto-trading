@@ -45,6 +45,10 @@ class BacktestHarness:
             stderr=subprocess.PIPE,
         )
 
+        assert proc.stdin is not None
+        assert proc.stdout is not None
+        assert proc.stderr is not None
+
         proc.stdin.write(config_json.encode())
         proc.stdin.flush()
         proc.stdin.close()

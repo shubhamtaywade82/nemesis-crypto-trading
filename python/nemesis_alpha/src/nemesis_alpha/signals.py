@@ -51,7 +51,7 @@ class SignalEmitter:
         )
 
         envelope = EventEnvelope(
-            event_id=str(uuid.uuid7()),
+            event_id=str(uuid.uuid7()),  # type: ignore[attr-defined]
             source=self._source,
             symbol=symbol,
             exchange_ts_us=int(time.time() * 1_000_000),

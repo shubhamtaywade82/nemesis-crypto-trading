@@ -19,5 +19,9 @@ dev = [
     "ruff>=0.2",
 ]
 
+[tool.mypy]
+ignore_missing_imports = true
+warn_unused_ignores = false
+
 [tool.setuptools.packages.find]
 where = ["src"]

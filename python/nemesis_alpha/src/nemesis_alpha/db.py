@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
-import asyncpg
+import asyncpg  # type: ignore[import-untyped]
 
 
 class NemesisDB:
