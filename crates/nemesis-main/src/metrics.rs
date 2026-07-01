@@ -126,3 +126,66 @@ impl NemesisMetrics {
         String::from_utf8(buffer).unwrap()
     }
 }
+
+use nemesis_core::MetricsRecorder;
+
+impl MetricsRecorder for NemesisMetrics {
+    fn record_bar_closed(&self, symbol: &str, bar_type: &str, corrupted: bool, latency_us: f64) {
+        self.bars_processed
+            .with_label_values(&[symbol, bar_type])
+            .inc();
+        if corrupted {
+            self.bars_corrupted.with_label_values(&[symbol]).inc();
+        }
+        self.bar_build_latency_us
+            .with_label_values(&[symbol])
+            .observe(latency_us);
+    }
+
+    fn record_bar_forced_close(&self, symbol: &str, bar_type: &str) {
+        self.bars_processed
+            .with_label_values(&[symbol, bar_type])
+            .inc();
+        self.bars_corrupted.with_label_values(&[symbol]).inc();
+    }
+
+    fn record_ws_reconnection(&self, symbol: &str) {
+        self.ws_reconnections.with_label_values(&[symbol]).inc();
+    }
+
+    fn record_signal_received(&self, symbol: &str, side: &str) {
+        self.signals_received
+            .with_label_values(&[symbol, side])
+            .inc();
+    }
+
+    fn record_order_submitted(&self, symbol: &str, side: &str, order_type: &str) {
+        self.orders_submitted
+            .with_label_values(&[symbol, side, order_type])
+            .inc();
+    }
+
+    fn record_order_rejected(&self, symbol: &str, reason: &str) {
+        self.orders_rejected
+            .with_label_values(&[symbol, reason])
+            .inc();
+    }
+
+    fn record_risk_violation(&self, violation_type: &str) {
+        self.risk_violations
+            .with_label_values(&[violation_type])
+            .inc();
+    }
+
+    fn record_reconciliation_drift(&self, drift_type: &str) {
+        self.reconciliation_drift
+            .with_label_values(&[drift_type])
+            .inc();
+    }
+
+    fn set_kill_switch(&self, active: bool) {
+        self.kill_switch_active
+            .with_label_values(&[])
+            .set(if active { 1 } else { 0 });
+    }
+}

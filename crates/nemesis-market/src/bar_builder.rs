@@ -1,6 +1,8 @@
+use std::sync::Arc;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
 use nemesis_core::proto::event_envelope::Payload;
-use nemesis_core::{BarClosed, EventEnvelope, MarketTick};
-use std::time::{SystemTime, UNIX_EPOCH};
+use nemesis_core::{BarClosed, EventEnvelope, MarketTick, MetricsHandle, NoopMetrics};
 use uuid::Uuid;
 
 /// Strict configuration for bar construction
@@ -88,6 +90,7 @@ pub struct BarBuilder {
     forming: Option<FormingBar>,
     expected_next_seq: Option<u64>,
     is_stale: bool,
+    metrics: MetricsHandle,
 }
 
 impl BarBuilder {
@@ -99,6 +102,19 @@ impl BarBuilder {
             forming: None,
             expected_next_seq: None,
             is_stale: false,
+            metrics: Arc::new(NoopMetrics),
+        }
+    }
+
+    pub fn with_metrics(mut self, metrics: MetricsHandle) -> Self {
+        self.metrics = metrics;
+        self
+    }
+
+    fn bar_type_label(&self) -> &'static str {
+        match &self.config {
+            BarConfig::TimeBased { .. } => "time_1m",
+            BarConfig::VolumeBased { .. } => "volume_100k",
         }
     }
 
@@ -109,6 +125,8 @@ impl BarBuilder {
         seq: u64,
         exchange_ts: i64,
     ) -> Option<EventEnvelope> {
+        let start = Instant::now();
+
         // Gap detection: if we missed sequences, mark as corrupted
         if let Some(expected) = self.expected_next_seq {
             if seq != expected {
@@ -150,13 +168,18 @@ impl BarBuilder {
             BarConfig::VolumeBased { .. } => 1, // VOLUME_100K_USDT
         };
 
-        let closed = self.forming.take().unwrap().into_closed(bar_type, self.is_stale);
+        let is_corrupted = self.is_stale;
+        let closed = self.forming.take().unwrap().into_closed(bar_type, is_corrupted);
         self.is_stale = false;
 
         let now_us = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_micros() as i64;
+
+        let latency = start.elapsed().as_micros() as f64;
+        let bar_type_label = self.bar_type_label();
+        self.metrics.record_bar_closed(&self.symbol, bar_type_label, is_corrupted, latency);
 
         Some(EventEnvelope {
             event_id: Uuid::now_v7().to_string(),
@@ -186,6 +209,9 @@ impl BarBuilder {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_micros() as i64;
+
+            let bar_type_label = self.bar_type_label();
+            self.metrics.record_bar_forced_close(&self.symbol, bar_type_label);
 
             Some(EventEnvelope {
                 event_id: Uuid::now_v7().to_string(),

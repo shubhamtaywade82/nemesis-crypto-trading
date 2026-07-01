@@ -1,12 +1,15 @@
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use futures_util::{SinkExt, StreamExt};
+use nemesis_core::{EventEnvelope, MetricsHandle, NoopMetrics};
+use tokio::sync::mpsc;
+use tracing::{debug, error, info};
+
 use crate::bar_builder::{BarBuilder, BarConfig};
 use crate::parser::BinanceAggTrade;
 use crate::publisher::EventPublisher;
 use crate::session_monitor::SessionMonitor;
-use futures_util::{SinkExt, StreamExt};
-use nemesis_core::EventEnvelope;
-use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::mpsc;
-use tracing::{debug, error, info};
 
 pub struct MarketIngester {
     symbol: String,
@@ -15,6 +18,7 @@ pub struct MarketIngester {
     event_tx: mpsc::Sender<EventEnvelope>,
     publisher: EventPublisher,
     raw_rx: Option<mpsc::Receiver<Vec<u8>>>,
+    metrics: MetricsHandle,
 }
 
 impl MarketIngester {
@@ -35,7 +39,14 @@ impl MarketIngester {
             event_tx,
             publisher,
             raw_rx: Some(raw_rx),
+            metrics: Arc::new(NoopMetrics),
         }
+    }
+
+    pub fn with_metrics(mut self, metrics: MetricsHandle) -> Self {
+        self.metrics = metrics;
+        self.bar_builder = self.bar_builder.with_metrics(self.metrics.clone());
+        self
     }
 
     pub fn take_raw_rx(&mut self) -> Option<mpsc::Receiver<Vec<u8>>> {
@@ -66,7 +77,8 @@ impl MarketIngester {
             source,
             10,
             self.event_tx.clone(),
-        );
+        )
+        .with_metrics(self.metrics.clone());
         tokio::spawn(async move {
             monitor.monitor_loop().await;
         });

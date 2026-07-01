@@ -75,13 +75,15 @@ async fn main() -> Result<()> {
 
     let _writer = PersistenceWriter::new(pool.clone());
 
-    let metrics = Arc::new(NemesisMetrics::new());
-    let alert_dispatcher = AlertDispatcher::new(std::env::var("ALERT_WEBHOOK_URL").ok());
+    let nemesis_metrics = NemesisMetrics::new();
+    let metrics: nemesis_core::MetricsHandle = Arc::new(nemesis_metrics.clone());
+    let _alert_dispatcher = AlertDispatcher::new(std::env::var("ALERT_WEBHOOK_URL").ok());
 
     let http_addr = std::env::var("HTTP_ADDR").unwrap_or_else(|_| "0.0.0.0:9090".into());
-    let http_server = HttpServer::new(metrics.clone());
+    let http_server = HttpServer::new(Arc::new(nemesis_metrics));
+    let http_addr_clone = http_addr.clone();
     tokio::spawn(async move {
-        if let Err(e) = http_server.run(&http_addr).await {
+        if let Err(e) = http_server.run(&http_addr_clone).await {
             error!(error = %e, "HTTP server failed");
         }
     });
@@ -113,7 +115,8 @@ async fn main() -> Result<()> {
             ws_url,
             bar_config,
             market_tx.clone(),
-        );
+        )
+        .with_metrics(metrics.clone());
 
         let handle = tokio::spawn(async move {
             if let Err(e) = ingester.run().await {
@@ -145,8 +148,8 @@ async fn main() -> Result<()> {
         ))
     };
 
-    let _exec_engine = ExecutionEngine::new(risk_config, exec_tx.clone());
-    let reconciler = Reconciler::new(exchange, 60, exec_tx.clone());
+    let _exec_engine = ExecutionEngine::with_metrics(risk_config, exec_tx.clone(), metrics.clone());
+    let reconciler = Reconciler::new(exchange, 60, exec_tx.clone()).with_metrics(metrics.clone());
 
     let recon_handle = tokio::spawn(async move {
         reconciler.run().await;

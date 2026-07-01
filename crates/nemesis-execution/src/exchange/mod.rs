@@ -55,6 +55,33 @@ pub trait Exchange: Send + Sync {
     async fn health_check(&self) -> Result<bool, ExchangeError>;
 }
 
+#[async_trait]
+impl<T: Exchange + ?Sized> Exchange for Box<T> {
+    async fn place_order(&self, order: &NewOrder) -> Result<String, ExchangeError> {
+        (**self).place_order(order).await
+    }
+
+    async fn cancel_order(&self, symbol: &str, client_order_id: &str) -> Result<(), ExchangeError> {
+        (**self).cancel_order(symbol, client_order_id).await
+    }
+
+    async fn get_balances(&self) -> Result<Vec<AccountBalance>, ExchangeError> {
+        (**self).get_balances().await
+    }
+
+    async fn get_positions(&self) -> Result<Vec<ExchangePosition>, ExchangeError> {
+        (**self).get_positions().await
+    }
+
+    async fn get_open_orders(&self, symbol: &str) -> Result<Vec<OrderEvent>, ExchangeError> {
+        (**self).get_open_orders(symbol).await
+    }
+
+    async fn health_check(&self) -> Result<bool, ExchangeError> {
+        (**self).health_check().await
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ExchangeError {
     #[error("Authentication failed: {0}")]

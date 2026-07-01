@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use std::time::Duration;
+
+use nemesis_core::proto::event_envelope::Payload;
+use nemesis_core::{EventEnvelope, MetricsHandle, NoopMetrics, SessionState, SessionStateChange};
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
-use nemesis_core::proto::event_envelope::Payload;
-use nemesis_core::{EventEnvelope, SessionState, SessionStateChange};
 use uuid::Uuid;
 
 use crate::exchange::Exchange;
@@ -11,6 +13,7 @@ pub struct Reconciler<E: Exchange> {
     exchange: E,
     interval: Duration,
     tx: mpsc::Sender<EventEnvelope>,
+    metrics: MetricsHandle,
 }
 
 impl<E: Exchange> Reconciler<E> {
@@ -19,7 +22,13 @@ impl<E: Exchange> Reconciler<E> {
             exchange,
             interval: Duration::from_secs(interval_secs),
             tx,
+            metrics: Arc::new(NoopMetrics),
         }
+    }
+
+    pub fn with_metrics(mut self, metrics: MetricsHandle) -> Self {
+        self.metrics = metrics;
+        self
     }
 
     pub async fn run(&self) {
@@ -32,11 +41,13 @@ impl<E: Exchange> Reconciler<E> {
                 }
                 Ok(false) => {
                     warn!("Reconciliation: exchange unhealthy");
+                    self.metrics.record_reconciliation_drift("health_check_unhealthy");
                     self.emit_session_change(SessionState::StaleFeed, "Health check failed".into())
                         .await;
                 }
                 Err(e) => {
                     error!(?e, "Reconciliation: exchange error");
+                    self.metrics.record_reconciliation_drift("exchange_error");
                     self.emit_session_change(
                         SessionState::Disconnected,
                         e.to_string(),

@@ -22,3 +22,4 @@ axum = { workspace = true }
 prometheus = { workspace = true }
 reqwest = { workspace = true }
 chrono = { workspace = true }
+serde_json = { workspace = true }

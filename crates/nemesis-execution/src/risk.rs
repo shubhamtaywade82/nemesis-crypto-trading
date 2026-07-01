@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use nemesis_core::{MetricsHandle, NoopMetrics};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -28,6 +31,7 @@ pub struct RiskEngine {
     config: RiskConfig,
     is_halted: bool,
     halt_reason: Option<String>,
+    metrics: MetricsHandle,
 }
 
 impl RiskEngine {
@@ -36,7 +40,13 @@ impl RiskEngine {
             config,
             is_halted: false,
             halt_reason: None,
+            metrics: Arc::new(NoopMetrics),
         }
+    }
+
+    pub fn with_metrics(mut self, metrics: MetricsHandle) -> Self {
+        self.metrics = metrics;
+        self
     }
 
     pub fn validate(&self) -> Result<(), RiskViolation> {
@@ -51,7 +61,13 @@ impl RiskEngine {
     pub fn trigger_kill_switch(&mut self, reason: impl Into<String>) {
         self.is_halted = true;
         self.halt_reason = Some(reason.into());
+        self.metrics.record_risk_violation("kill_switch");
+        self.metrics.set_kill_switch(true);
         tracing::error!(reason = ?self.halt_reason, "KILL SWITCH ACTIVATED");
+    }
+
+    pub fn config(&self) -> &RiskConfig {
+        &self.config
     }
 
     pub fn is_halted(&self) -> bool {

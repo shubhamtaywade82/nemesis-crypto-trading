@@ -1,6 +1,8 @@
-use nemesis_core::proto::event_envelope::Payload;
-use nemesis_core::{EventEnvelope, SessionState, SessionStateChange};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+use nemesis_core::proto::event_envelope::Payload;
+use nemesis_core::{EventEnvelope, MetricsHandle, NoopMetrics, SessionState, SessionStateChange};
 use tokio::sync::mpsc;
 use tracing::warn;
 use uuid::Uuid;
@@ -12,6 +14,7 @@ pub struct SessionMonitor {
     timeout: Duration,
     expected_seq: Option<u64>,
     tx: mpsc::Sender<EventEnvelope>,
+    metrics: MetricsHandle,
 }
 
 impl SessionMonitor {
@@ -28,7 +31,13 @@ impl SessionMonitor {
             timeout: Duration::from_secs(timeout_secs),
             expected_seq: None,
             tx,
+            metrics: Arc::new(NoopMetrics),
         }
+    }
+
+    pub fn with_metrics(mut self, metrics: MetricsHandle) -> Self {
+        self.metrics = metrics;
+        self
     }
 
     pub fn on_tick(&mut self, seq: u64) {
@@ -81,6 +90,10 @@ impl SessionMonitor {
                 reason,
             })),
         };
+
+        if matches!(state, SessionState::StaleFeed | SessionState::Disconnected) {
+            self.metrics.record_ws_reconnection(&self.symbol);
+        }
 
         if let Err(e) = self.tx.try_send(envelope) {
             warn!("Failed to send session state change: {}", e);
