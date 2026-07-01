@@ -51,10 +51,7 @@ impl SessionMonitor {
                     actual = seq,
                     "Sequence gap detected"
                 );
-                self.emit_state_change(
-                    SessionState::StaleFeed,
-                    "Sequence gap".to_string(),
-                );
+                self.emit_state_change(SessionState::StaleFeed, "Sequence gap".to_string());
             }
         }
         self.expected_seq = Some(seq + 1);
@@ -68,10 +65,7 @@ impl SessionMonitor {
                     symbol = %self.symbol,
                     "Heartbeat timeout - feed stale"
                 );
-                self.emit_state_change(
-                    SessionState::StaleFeed,
-                    "Heartbeat timeout".to_string(),
-                );
+                self.emit_state_change(SessionState::StaleFeed, "Heartbeat timeout".to_string());
             }
         }
     }

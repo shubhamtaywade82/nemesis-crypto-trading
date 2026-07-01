@@ -30,25 +30,37 @@ impl NemesisMetrics {
         .unwrap();
 
         let bars_corrupted = IntCounterVec::new(
-            Opts::new("nemesis_bars_corrupted_total", "Total corrupted bars detected"),
+            Opts::new(
+                "nemesis_bars_corrupted_total",
+                "Total corrupted bars detected",
+            ),
             &["symbol"],
         )
         .unwrap();
 
         let signals_received = IntCounterVec::new(
-            Opts::new("nemesis_signals_received_total", "Trade signals received from Python"),
+            Opts::new(
+                "nemesis_signals_received_total",
+                "Trade signals received from Python",
+            ),
             &["symbol", "side"],
         )
         .unwrap();
 
         let orders_submitted = IntCounterVec::new(
-            Opts::new("nemesis_orders_submitted_total", "Orders submitted to exchange"),
+            Opts::new(
+                "nemesis_orders_submitted_total",
+                "Orders submitted to exchange",
+            ),
             &["symbol", "side", "order_type"],
         )
         .unwrap();
 
         let orders_rejected = IntCounterVec::new(
-            Opts::new("nemesis_orders_rejected_total", "Orders rejected by risk engine"),
+            Opts::new(
+                "nemesis_orders_rejected_total",
+                "Orders rejected by risk engine",
+            ),
             &["symbol", "reason"],
         )
         .unwrap();
@@ -60,20 +72,29 @@ impl NemesisMetrics {
         .unwrap();
 
         let ws_reconnections = IntCounterVec::new(
-            Opts::new("nemesis_ws_reconnections_total", "WebSocket reconnection attempts"),
+            Opts::new(
+                "nemesis_ws_reconnections_total",
+                "WebSocket reconnection attempts",
+            ),
             &["symbol"],
         )
         .unwrap();
 
         let reconciliation_drift = IntCounterVec::new(
-            Opts::new("nemesis_reconciliation_drift_total", "Reconciliation drift events"),
+            Opts::new(
+                "nemesis_reconciliation_drift_total",
+                "Reconciliation drift events",
+            ),
             &["drift_type"],
         )
         .unwrap();
 
         let bar_build_latency_us = HistogramVec::new(
-            HistogramOpts::new("nemesis_bar_build_latency_us", "Bar build latency in microseconds")
-                .buckets(vec![10.0, 50.0, 100.0, 500.0, 1000.0, 5000.0]),
+            HistogramOpts::new(
+                "nemesis_bar_build_latency_us",
+                "Bar build latency in microseconds",
+            )
+            .buckets(vec![10.0, 50.0, 100.0, 500.0, 1000.0, 5000.0]),
             &["symbol"],
         )
         .unwrap();
@@ -85,22 +106,43 @@ impl NemesisMetrics {
         .unwrap();
 
         let kill_switch_active = IntGaugeVec::new(
-            Opts::new("nemesis_kill_switch_active", "Kill switch status (1=active, 0=normal)"),
+            Opts::new(
+                "nemesis_kill_switch_active",
+                "Kill switch status (1=active, 0=normal)",
+            ),
             &[],
         )
         .unwrap();
 
         registry.register(Box::new(bars_processed.clone())).unwrap();
         registry.register(Box::new(bars_corrupted.clone())).unwrap();
-        registry.register(Box::new(signals_received.clone())).unwrap();
-        registry.register(Box::new(orders_submitted.clone())).unwrap();
-        registry.register(Box::new(orders_rejected.clone())).unwrap();
-        registry.register(Box::new(risk_violations.clone())).unwrap();
-        registry.register(Box::new(ws_reconnections.clone())).unwrap();
-        registry.register(Box::new(reconciliation_drift.clone())).unwrap();
-        registry.register(Box::new(bar_build_latency_us.clone())).unwrap();
-        registry.register(Box::new(active_positions.clone())).unwrap();
-        registry.register(Box::new(kill_switch_active.clone())).unwrap();
+        registry
+            .register(Box::new(signals_received.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(orders_submitted.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(orders_rejected.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(risk_violations.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(ws_reconnections.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(reconciliation_drift.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(bar_build_latency_us.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(active_positions.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(kill_switch_active.clone()))
+            .unwrap();
 
         Self {
             registry: Arc::new(registry),

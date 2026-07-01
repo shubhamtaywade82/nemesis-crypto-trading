@@ -72,13 +72,9 @@ impl MarketIngester {
             .await?;
 
         let source = "binance-ws".to_string();
-        let mut monitor = SessionMonitor::new(
-            self.symbol.clone(),
-            source,
-            10,
-            self.event_tx.clone(),
-        )
-        .with_metrics(self.metrics.clone());
+        let mut monitor =
+            SessionMonitor::new(self.symbol.clone(), source, 10, self.event_tx.clone())
+                .with_metrics(self.metrics.clone());
         tokio::spawn(async move {
             monitor.monitor_loop().await;
         });
@@ -108,9 +104,7 @@ impl MarketIngester {
                             exchange_ts_us: ts_us,
                             receive_ts_us: now_us,
                             sequence_num: seq,
-                            payload: Some(
-                                nemesis_core::proto::event_envelope::Payload::Tick(tick),
-                            ),
+                            payload: Some(nemesis_core::proto::event_envelope::Payload::Tick(tick)),
                         };
 
                         self.publisher.publish(&envelope).await?;

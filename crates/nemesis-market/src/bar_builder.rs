@@ -169,7 +169,11 @@ impl BarBuilder {
         };
 
         let is_corrupted = self.is_stale;
-        let closed = self.forming.take().unwrap().into_closed(bar_type, is_corrupted);
+        let closed = self
+            .forming
+            .take()
+            .unwrap()
+            .into_closed(bar_type, is_corrupted);
         self.is_stale = false;
 
         let now_us = SystemTime::now()
@@ -179,7 +183,8 @@ impl BarBuilder {
 
         let latency = start.elapsed().as_micros() as f64;
         let bar_type_label = self.bar_type_label();
-        self.metrics.record_bar_closed(&self.symbol, bar_type_label, is_corrupted, latency);
+        self.metrics
+            .record_bar_closed(&self.symbol, bar_type_label, is_corrupted, latency);
 
         Some(EventEnvelope {
             event_id: Uuid::now_v7().to_string(),
@@ -211,7 +216,8 @@ impl BarBuilder {
                 .as_micros() as i64;
 
             let bar_type_label = self.bar_type_label();
-            self.metrics.record_bar_forced_close(&self.symbol, bar_type_label);
+            self.metrics
+                .record_bar_forced_close(&self.symbol, bar_type_label);
 
             Some(EventEnvelope {
                 event_id: Uuid::now_v7().to_string(),

@@ -15,13 +15,16 @@ impl HttpServer {
 
     pub async fn run(self, addr: &str) -> anyhow::Result<()> {
         let app = Router::new()
-            .route("/health", get(|| async {
-                Json(json!({
-                    "status": "healthy",
-                    "version": env!("CARGO_PKG_VERSION"),
-                    "timestamp": chrono::Utc::now().to_rfc3339()
-                }))
-            }))
+            .route(
+                "/health",
+                get(|| async {
+                    Json(json!({
+                        "status": "healthy",
+                        "version": env!("CARGO_PKG_VERSION"),
+                        "timestamp": chrono::Utc::now().to_rfc3339()
+                    }))
+                }),
+            )
             .route("/metrics", {
                 let metrics = self.metrics;
                 get(|| async move { metrics.encode() })

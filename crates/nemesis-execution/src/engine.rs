@@ -7,6 +7,7 @@ use tracing::{info, warn};
 use crate::paper_exchange::PaperExchange;
 use crate::risk::{RiskConfig, RiskEngine};
 
+#[allow(dead_code)]
 pub struct ExecutionEngine {
     risk: RiskEngine,
     paper: PaperExchange,
@@ -41,7 +42,8 @@ impl ExecutionEngine {
     pub async fn on_signal(&mut self, envelope: &EventEnvelope) {
         if let Err(violation) = self.risk.validate() {
             warn!(?violation, "Signal rejected by risk engine");
-            self.metrics.record_order_rejected(&envelope.symbol, &violation.to_string());
+            self.metrics
+                .record_order_rejected(&envelope.symbol, &violation.to_string());
             return;
         }
 
@@ -58,7 +60,8 @@ impl ExecutionEngine {
         };
 
         self.metrics.record_signal_received(&envelope.symbol, side);
-        self.metrics.record_order_submitted(&envelope.symbol, side, "market");
+        self.metrics
+            .record_order_submitted(&envelope.symbol, side, "market");
 
         info!("Signal approved, submitting to paper exchange");
     }

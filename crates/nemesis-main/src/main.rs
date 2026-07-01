@@ -30,8 +30,8 @@ async fn main() -> Result<()> {
         std::env::var("NEMESIS_CONFIG").unwrap_or_else(|_| "config/nemesis.toml".into());
     let config = AppConfig::load(&config_path)?;
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(&config.logging.level));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.logging.level));
 
     match config.logging.format.as_str() {
         "json" => fmt().json().with_env_filter(filter).init(),
@@ -110,13 +110,8 @@ async fn main() -> Result<()> {
             }
         };
 
-        let ingester = MarketIngester::new(
-            symbol.clone(),
-            ws_url,
-            bar_config,
-            market_tx.clone(),
-        )
-        .with_metrics(metrics.clone());
+        let ingester = MarketIngester::new(symbol.clone(), ws_url, bar_config, market_tx.clone())
+            .with_metrics(metrics.clone());
 
         let handle = tokio::spawn(async move {
             if let Err(e) = ingester.run().await {
@@ -136,17 +131,18 @@ async fn main() -> Result<()> {
 
     let use_dry_run = config.exchange.dry_run;
 
-    let exchange: Box<dyn nemesis_execution::Exchange + Send + Sync> = if use_dry_run || config.exchange.testnet {
-        info!("Using PaperExchange for simulated execution");
-        Box::new(PaperExchange::new())
-    } else {
-        info!("Using BinanceFutures for live execution");
-        Box::new(BinanceFutures::new(
-            config.exchange.api_key.clone(),
-            config.exchange.api_secret.clone(),
-            config.exchange.testnet,
-        ))
-    };
+    let exchange: Box<dyn nemesis_execution::Exchange + Send + Sync> =
+        if use_dry_run || config.exchange.testnet {
+            info!("Using PaperExchange for simulated execution");
+            Box::new(PaperExchange::new())
+        } else {
+            info!("Using BinanceFutures for live execution");
+            Box::new(BinanceFutures::new(
+                config.exchange.api_key.clone(),
+                config.exchange.api_secret.clone(),
+                config.exchange.testnet,
+            ))
+        };
 
     let _exec_engine = ExecutionEngine::with_metrics(risk_config, exec_tx.clone(), metrics.clone());
     let reconciler = Reconciler::new(exchange, 60, exec_tx.clone()).with_metrics(metrics.clone());

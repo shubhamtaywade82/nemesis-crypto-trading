@@ -41,18 +41,16 @@ impl<E: Exchange> Reconciler<E> {
                 }
                 Ok(false) => {
                     warn!("Reconciliation: exchange unhealthy");
-                    self.metrics.record_reconciliation_drift("health_check_unhealthy");
+                    self.metrics
+                        .record_reconciliation_drift("health_check_unhealthy");
                     self.emit_session_change(SessionState::StaleFeed, "Health check failed".into())
                         .await;
                 }
                 Err(e) => {
                     error!(?e, "Reconciliation: exchange error");
                     self.metrics.record_reconciliation_drift("exchange_error");
-                    self.emit_session_change(
-                        SessionState::Disconnected,
-                        e.to_string(),
-                    )
-                    .await;
+                    self.emit_session_change(SessionState::Disconnected, e.to_string())
+                        .await;
                 }
             }
         }

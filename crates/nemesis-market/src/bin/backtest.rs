@@ -13,7 +13,9 @@ fn main() -> anyhow::Result<()> {
         .as_str()
         .unwrap_or("BTCUSDT-PERP")
         .to_string();
-    let bar_type = config["bar_config"]["type"].as_str().unwrap_or("volume_100k");
+    let bar_type = config["bar_config"]["type"]
+        .as_str()
+        .unwrap_or("volume_100k");
 
     let bar_config = match bar_type {
         "time_1m" => BarConfig::TimeBased { interval_secs: 60 },

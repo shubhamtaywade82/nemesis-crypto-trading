@@ -35,6 +35,7 @@ pub struct PaperExchange {
     inner: Mutex<PaperExchangeInner>,
 }
 
+#[allow(clippy::new_without_default)]
 impl PaperExchange {
     pub fn new() -> Self {
         Self {
@@ -135,7 +136,11 @@ impl Exchange for PaperExchange {
         Ok(order.client_order_id.clone())
     }
 
-    async fn cancel_order(&self, _symbol: &str, client_order_id: &str) -> Result<(), ExchangeError> {
+    async fn cancel_order(
+        &self,
+        _symbol: &str,
+        client_order_id: &str,
+    ) -> Result<(), ExchangeError> {
         let mut inner = self.inner.lock().unwrap();
         inner.bids.retain(|o| o.id != client_order_id);
         inner.asks.retain(|o| o.id != client_order_id);

@@ -48,6 +48,7 @@ impl PersistenceWriter {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn write_audit(
         &self,
         event_id: &str,

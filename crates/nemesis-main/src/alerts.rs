@@ -17,7 +17,10 @@ impl AlertDispatcher {
 
     pub async fn send_critical(&self, title: &str, message: &str, severity: &str) {
         let Some(url) = &self.webhook_url else {
-            warn!(title, message, severity, "No webhook configured, alert logged only");
+            warn!(
+                title,
+                message, severity, "No webhook configured, alert logged only"
+            );
             return;
         };
 
@@ -48,7 +51,10 @@ impl AlertDispatcher {
     pub async fn kill_switch_triggered(&self, reason: &str) {
         self.send_critical(
             "KILL SWITCH ACTIVATED",
-            &format!("Reason: {}\nAll trading halted. Manual intervention required.", reason),
+            &format!(
+                "Reason: {}\nAll trading halted. Manual intervention required.",
+                reason
+            ),
             "critical",
         )
         .await;
@@ -57,7 +63,10 @@ impl AlertDispatcher {
     pub async fn stale_feed_detected(&self, symbol: &str, duration_secs: u64) {
         self.send_critical(
             "STALE FEED DETECTED",
-            &format!("Symbol: {}\nDuration: {}s\nBar builder paused.", symbol, duration_secs),
+            &format!(
+                "Symbol: {}\nDuration: {}s\nBar builder paused.",
+                symbol, duration_secs
+            ),
             "warning",
         )
         .await;

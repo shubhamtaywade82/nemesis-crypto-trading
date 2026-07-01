@@ -5,4 +5,6 @@ pub mod proto {
 }
 
 pub use metrics::{MetricsHandle, MetricsRecorder, NoopMetrics};
-pub use proto::{BarClosed, EventEnvelope, MarketTick, OrderEvent, SessionState, SessionStateChange, TradeSignal};
+pub use proto::{
+    BarClosed, EventEnvelope, MarketTick, OrderEvent, SessionState, SessionStateChange, TradeSignal,
+};

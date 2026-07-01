@@ -17,7 +17,14 @@ pub type MetricsHandle = Arc<dyn MetricsRecorder>;
 pub struct NoopMetrics;
 
 impl MetricsRecorder for NoopMetrics {
-    fn record_bar_closed(&self, _symbol: &str, _bar_type: &str, _corrupted: bool, _latency_us: f64) {}
+    fn record_bar_closed(
+        &self,
+        _symbol: &str,
+        _bar_type: &str,
+        _corrupted: bool,
+        _latency_us: f64,
+    ) {
+    }
     fn record_bar_forced_close(&self, _symbol: &str, _bar_type: &str) {}
     fn record_ws_reconnection(&self, _symbol: &str) {}
     fn record_signal_received(&self, _symbol: &str, _side: &str) {}

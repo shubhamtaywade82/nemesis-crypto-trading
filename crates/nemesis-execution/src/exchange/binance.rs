@@ -51,10 +51,8 @@ impl BinanceFutures {
         self.rate_limiter.acquire().await;
 
         let timestamp = chrono::Utc::now().timestamp_millis().to_string();
-        let mut query_parts: Vec<String> = params
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .collect();
+        let mut query_parts: Vec<String> =
+            params.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
         query_parts.push(format!("timestamp={}", timestamp));
 
         let query_string = query_parts.join("&");
@@ -66,7 +64,12 @@ impl BinanceFutures {
 
         debug!(url = %url, "Signed GET request");
 
-        let resp = self.client.get(&url).header("X-MBX-APIKEY", &self.api_key).send().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", &self.api_key)
+            .send()
+            .await?;
 
         if resp.status() == 429 {
             let retry_after = resp
@@ -75,7 +78,9 @@ impl BinanceFutures {
                 .and_then(|v| v.to_str().ok())
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(1000);
-            return Err(ExchangeError::RateLimited { retry_after_ms: retry_after });
+            return Err(ExchangeError::RateLimited {
+                retry_after_ms: retry_after,
+            });
         }
 
         let body: serde_json::Value = resp.json().await?;
@@ -103,16 +108,11 @@ impl Exchange for BinanceFutures {
     }
 
     async fn get_positions(&self) -> Result<Vec<ExchangePosition>, ExchangeError> {
-        let _body = self
-            .signed_get("/fapi/v2/positionRisk", &[])
-            .await?;
+        let _body = self.signed_get("/fapi/v2/positionRisk", &[]).await?;
         todo!("Parse Binance position response")
     }
 
-    async fn get_open_orders(
-        &self,
-        _symbol: &str,
-    ) -> Result<Vec<OrderEvent>, ExchangeError> {
+    async fn get_open_orders(&self, _symbol: &str) -> Result<Vec<OrderEvent>, ExchangeError> {
         let _body = self
             .signed_get("/fapi/v1/openOrders", &[("symbol", _symbol)])
             .await?;
