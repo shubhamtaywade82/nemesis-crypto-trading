@@ -19,6 +19,12 @@ class PerformanceMetrics:
     avg_trade_pnl: float
     bars_processed: int
     corrupted_bars: int
+    gross_profit: float = 0.0
+    gross_loss: float = 0.0
+    avg_win_pnl: float = 0.0
+    avg_loss_pnl: float = 0.0
+    max_win_pnl: float = 0.0
+    max_loss_pnl: float = 0.0
 
 
 def compute_metrics(result: BacktestResult, risk_free_rate: float = 0.0) -> PerformanceMetrics:
@@ -31,7 +37,12 @@ def compute_metrics(result: BacktestResult, risk_free_rate: float = 0.0) -> Perf
 
     n_periods = len(returns)
     periods_per_year = 525_600
-    annualized_return = (1 + total_return) ** (periods_per_year / max(n_periods, 1)) - 1
+    try:
+        annualized_return = (1 + total_return) ** (periods_per_year / max(n_periods, 1)) - 1
+        if not math.isfinite(annualized_return):
+            annualized_return = total_return
+    except OverflowError:
+        annualized_return = total_return
 
     mean_ret = sum(returns) / len(returns)
     variance = sum((r - mean_ret) ** 2 for r in returns) / max(len(returns) - 1, 1)
@@ -70,6 +81,11 @@ def compute_metrics(result: BacktestResult, risk_free_rate: float = 0.0) -> Perf
     gross_profit = sum(t.pnl for t in wins) if wins else 0.0
     gross_loss = abs(sum(t.pnl for t in losses)) if losses else 0.0
 
+    avg_win_pnl = gross_profit / len(wins) if wins else 0.0
+    avg_loss_pnl = -1.0 * (sum(t.pnl for t in losses) / len(losses)) if losses else 0.0
+    max_win_pnl = max((t.pnl for t in wins), default=0.0)
+    max_loss_pnl = min((t.pnl for t in losses), default=0.0)
+
     return PerformanceMetrics(
         total_return=total_return,
         annualized_return=annualized_return,
@@ -83,4 +99,10 @@ def compute_metrics(result: BacktestResult, risk_free_rate: float = 0.0) -> Perf
         avg_trade_pnl=sum(t.pnl for t in closed_trades) / max(len(closed_trades), 1),
         bars_processed=result.bars_processed,
         corrupted_bars=result.corrupted_bars_skipped,
+        gross_profit=gross_profit,
+        gross_loss=gross_loss,
+        avg_win_pnl=avg_win_pnl,
+        avg_loss_pnl=avg_loss_pnl,
+        max_win_pnl=max_win_pnl,
+        max_loss_pnl=max_loss_pnl,
     )

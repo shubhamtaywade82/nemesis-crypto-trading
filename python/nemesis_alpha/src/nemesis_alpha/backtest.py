@@ -82,10 +82,13 @@ class BacktestHarness:
                     is_corrupted=bar.is_corrupted,
                 )
 
+        stderr = proc.stderr.read().decode()
+        if stderr:
+            print(f"[backtest stderr] {stderr.strip()}", file=__import__("sys").stderr)
+
         proc.wait()
         if proc.returncode != 0:
-            stderr = proc.stderr.read().decode()
-            raise RuntimeError(f"Backtest binary failed: {stderr}")
+            raise RuntimeError(f"Backtest binary failed: {stderr.strip()}")
 
     def run(self, tick_file: Path, strategy_factory) -> BacktestResult:
         strategy = strategy_factory(self.symbol)
@@ -97,6 +100,40 @@ class BacktestHarness:
             bars_processed += 1
             if bar.is_corrupted:
                 corrupted_bars += 1
+                continue
+
+            envelope = EventEnvelope()
+            envelope.exchange_ts_us = 0
+            envelope.symbol = self.symbol
+
+            signal = strategy.on_bar(bar)
+            if signal is None:
+                continue
+
+            sig_env = EventEnvelope()
+            sig_env.ParseFromString(signal)
+            sig = sig_env.signal
+
+            if trades and trades[-1].get("exit_time") is None:
+                last = trades[-1]
+                if last["side"] == "LONG" and sig.side == SignalSide.SELL.value:
+                    last["exit_time"] = 0
+                    last["exit_price"] = bar.close
+                    last["pnl"] = (bar.close - last["entry_price"]) * last["quantity"]
+
+            if trades and trades[-1].get("exit_time") is not None:
+                if sig.side == SignalSide.BUY.value and sig.quantity > 0:
+                    trades.append(
+                        {
+                            "entry_time": 0,
+                            "exit_time": None,
+                            "side": "LONG",
+                            "entry_price": bar.close,
+                            "exit_price": None,
+                            "quantity": sig.quantity,
+                            "pnl": 0.0,
+                        }
+                    )
 
         return BacktestResult(
             bars_processed=bars_processed,
