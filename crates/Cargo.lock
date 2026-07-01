@@ -732,10 +732,12 @@ name = "nemesis-market"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "chrono",
  "futures-util",
  "nemesis-core",
  "pretty_assertions",
+ "prost",
  "reqwest",
  "serde",
  "serde_json",

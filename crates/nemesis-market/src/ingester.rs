@@ -1,17 +1,20 @@
 use crate::bar_builder::{BarBuilder, BarConfig};
 use crate::parser::BinanceAggTrade;
+use crate::publisher::EventPublisher;
 use crate::session_monitor::SessionMonitor;
 use futures_util::{SinkExt, StreamExt};
 use nemesis_core::EventEnvelope;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct MarketIngester {
     symbol: String,
     ws_url: String,
     bar_builder: BarBuilder,
-    tx: mpsc::Sender<EventEnvelope>,
+    event_tx: mpsc::Sender<EventEnvelope>,
+    publisher: EventPublisher,
+    raw_rx: Option<mpsc::Receiver<Vec<u8>>>,
 }
 
 impl MarketIngester {
@@ -19,15 +22,24 @@ impl MarketIngester {
         symbol: String,
         ws_url: String,
         bar_config: BarConfig,
-        tx: mpsc::Sender<EventEnvelope>,
+        event_tx: mpsc::Sender<EventEnvelope>,
     ) -> Self {
         let source = "binance-ws".to_string();
+        let (raw_tx, raw_rx) = mpsc::channel::<Vec<u8>>(1000);
+        let publisher = EventPublisher::new(raw_tx);
+
         Self {
             symbol: symbol.clone(),
             ws_url,
-            bar_builder: BarBuilder::new(symbol.clone(), source.clone(), bar_config),
-            tx,
+            bar_builder: BarBuilder::new(symbol.clone(), source, bar_config),
+            event_tx,
+            publisher,
+            raw_rx: Some(raw_rx),
         }
+    }
+
+    pub fn take_raw_rx(&mut self) -> Option<mpsc::Receiver<Vec<u8>>> {
+        self.raw_rx.take()
     }
 
     pub async fn run(mut self) -> anyhow::Result<()> {
@@ -48,13 +60,12 @@ impl MarketIngester {
             .send(tokio_tungstenite::tungstenite::Message::Text(subscribe_msg))
             .await?;
 
-        // Spawn session monitor for this symbol
         let source = "binance-ws".to_string();
         let mut monitor = SessionMonitor::new(
             self.symbol.clone(),
             source,
-            10, // 10s heartbeat timeout
-            self.tx.clone(),
+            10,
+            self.event_tx.clone(),
         );
         tokio::spawn(async move {
             monitor.monitor_loop().await;
@@ -63,11 +74,10 @@ impl MarketIngester {
         while let Some(msg) = read.next().await {
             match msg {
                 Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {
-                    // Binance aggTrade JSON may be wrapped in a stream envelope
                     if let Ok(trade) = serde_json::from_str::<BinanceAggTrade>(&text) {
                         let tick = trade.to_market_tick()?;
                         let seq = trade.agg_trade_id;
-                        let ts_us = trade.timestamp * 1000; // ms to us
+                        let ts_us = trade.timestamp * 1000;
 
                         let now_us = SystemTime::now()
                             .duration_since(UNIX_EPOCH)
@@ -76,9 +86,7 @@ impl MarketIngester {
 
                         // Process tick through bar builder first
                         if let Some(bar_event) = self.bar_builder.on_tick(&tick, seq, ts_us) {
-                            if let Err(e) = self.tx.send(bar_event).await {
-                                error!("Failed to send bar event: {}", e);
-                            }
+                            self.publisher.publish(&bar_event).await?;
                         }
 
                         let envelope = EventEnvelope {
@@ -93,19 +101,20 @@ impl MarketIngester {
                             ),
                         };
 
-                        if let Err(e) = self.tx.send(envelope).await {
-                            error!("Failed to send tick event: {}", e);
-                        }
+                        self.publisher.publish(&envelope).await?;
                     } else {
                         debug!("Non-trade message: {}", text);
                     }
                 }
                 Ok(tokio_tungstenite::tungstenite::Message::Ping(data)) => {
-                    if let Err(e) = write.send(tokio_tungstenite::tungstenite::Message::Pong(data)).await {
+                    if let Err(e) = write
+                        .send(tokio_tungstenite::tungstenite::Message::Pong(data))
+                        .await
+                    {
                         error!("Failed to send pong: {}", e);
                     }
                 }
-                Ok(_) => {} // Ignore pong/binary
+                Ok(_) => {}
                 Err(e) => {
                     error!("WebSocket error: {}", e);
                     break;
