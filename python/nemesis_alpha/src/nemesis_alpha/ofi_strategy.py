@@ -28,7 +28,7 @@ class OFIMeanReversionStrategy(BaseStrategy):
         symbol: str,
         lookback: int = 30,
         z_threshold: float = 2.0,
-        momentum_divergence: float = 0.0005,
+        momentum_divergence: float = 0.001,
         quantity: float = 0.001,
     ):
         super().__init__(symbol)
