@@ -228,7 +228,7 @@ impl MetricsRecorder for NemesisMetrics {
 
     fn set_kill_switch(&self, active: bool) {
         self.kill_switch_active
-            .with_label_values(&[])
+            .with_label_values(&[] as &[&str])
             .set(if active { 1 } else { 0 });
     }
 }
