@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   redpanda:
     image: redpandadata/redpanda:v23.3.5
@@ -22,7 +20,7 @@ services:
       POSTGRES_USER: nemesis
       POSTGRES_PASSWORD: nemesis_dev
     ports:
-      - "5432:5432"
+      - "5432:5434"
     volumes:
       - tsdb_data:/var/lib/postgresql/data
 

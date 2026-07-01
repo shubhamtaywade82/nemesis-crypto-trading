@@ -67,16 +67,34 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Resolve secrets: Secrets Manager when config has placeholder, else local dev fallback
-    let exchange_secrets = if config.exchange.api_key.starts_with("${") {
-        let sm = secrets::SecretsManager::new().await?;
-        let secret_name = std::env::var("EXCHANGE_SECRET_NAME")
-            .unwrap_or_else(|_| "nemesis/binance/mainnet".into());
-        sm.get_exchange_secrets(&secret_name).await?
+    let use_dry_run = config.exchange.dry_run;
+
+    // Resolve secrets: only required for live execution.
+    // Public market data ingesters and dry-run paper execution do not need exchange credentials.
+    let needs_live_keys = !use_dry_run && !config.exchange.testnet;
+    let exchange_secrets = if needs_live_keys {
+        let api_key = std::env::var("BINANCE_API_KEY")
+            .or_else(|_| std::env::var("EXCHANGE_API_KEY"))
+            .unwrap_or_else(|_| config.exchange.api_key.clone());
+        let api_secret = std::env::var("BINANCE_API_SECRET")
+            .or_else(|_| std::env::var("EXCHANGE_API_SECRET"))
+            .unwrap_or_else(|_| config.exchange.api_secret.clone());
+
+        if api_key.starts_with("${") || api_secret.starts_with("${") {
+            let sm = secrets::SecretsManager::new().await?;
+            let secret_name = std::env::var("EXCHANGE_SECRET_NAME")
+                .unwrap_or_else(|_| "nemesis/binance/mainnet".into());
+            sm.get_exchange_secrets(&secret_name).await?
+        } else {
+            secrets::ExchangeSecrets {
+                api_key,
+                api_secret,
+            }
+        }
     } else {
         secrets::ExchangeSecrets {
-            api_key: config.exchange.api_key.clone(),
-            api_secret: config.exchange.api_secret.clone(),
+            api_key: String::new(),
+            api_secret: String::new(),
         }
     };
 

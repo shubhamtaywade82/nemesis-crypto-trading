@@ -2,6 +2,8 @@ use axum::{routing::get, Json, Router};
 use serde_json::json;
 use std::sync::Arc;
 
+const NEMESIS_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 use crate::metrics::NemesisMetrics;
 
 pub struct HttpServer {
@@ -20,7 +22,7 @@ impl HttpServer {
                 get(|| async {
                     Json(json!({
                         "status": "healthy",
-                        "version": env!("CARGO_PKG_VERSION"),
+                        "version": NEMESIS_VERSION,
                         "timestamp": chrono::Utc::now().to_rfc3339()
                     }))
                 }),
