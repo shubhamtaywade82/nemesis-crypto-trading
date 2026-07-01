@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
-"""Unified Nemesis backtest CLI: download -> replay -> analyze -> report."""
+"""Unified Nemesis backtest CLI: replay -> analyze -> report."""
 import argparse
 import asyncio
 import json
+import logging
+import sys
 from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
 from nemesis_alpha.backtest_engine import BacktestEngine
 from nemesis_alpha.analytics import compute_metrics
 from nemesis_alpha.strategy import ExampleMomentumStrategy
+from nemesis_alpha.ofi_strategy import OFIMeanReversionStrategy
+
+
+STRATEGY_MAP = {
+    "momentum": ExampleMomentumStrategy,
+    "ofi_mean_reversion": OFIMeanReversionStrategy,
+}
 
 
 async def run_backtest(
@@ -15,6 +27,7 @@ async def run_backtest(
     bar_type: str,
     bar_param: float,
     rust_binary: str,
+    strategy_name: str,
 ) -> None:
     bar_config: dict = {"type": bar_type}
     if bar_type == "volume_100k":
@@ -22,20 +35,20 @@ async def run_backtest(
     else:
         bar_config["interval_secs"] = int(bar_param)
 
+    strategy_cls = STRATEGY_MAP[strategy_name]
+
     engine = BacktestEngine(rust_binary)
     result = await engine.run(
         tick_file=tick_file,
         symbol=symbol,
         bar_config=bar_config,
-        strategy_cls=ExampleMomentumStrategy,
-        lookback=20,
-        threshold=0.001,
+        strategy_cls=strategy_cls,
     )
 
     metrics = compute_metrics(result)
 
     print("\n" + "=" * 60)
-    print(f"  NEMESIS BACKTEST RESULTS: {symbol}")
+    print(f"  NEMESIS BACKTEST RESULTS: {symbol} ({strategy_name})")
     print("=" * 60)
     print(f"  Bars Processed:     {result.bars_processed:>12,}")
     print(f"  Corrupted Skipped:  {result.corrupted_bars_skipped:>12,}")
@@ -54,6 +67,7 @@ async def run_backtest(
     out_path = tick_file.with_suffix(".results.json")
     out_path.write_text(json.dumps({
         "symbol": symbol,
+        "strategy": strategy_name,
         "bar_config": bar_config,
         "metrics": {
             "sharpe": metrics.sharpe_ratio,
@@ -77,8 +91,13 @@ if __name__ == "__main__":
     parser.add_argument("--bar-type", choices=["time_1m", "volume_100k"], default="volume_100k")
     parser.add_argument("--bar-param", type=float, default=100000.0,
                         help="Volume threshold (USDT) or time interval (seconds)")
-    parser.add_argument("--rust-binary", default="crates/target/release/nemesis-backtest")
+    parser.add_argument("--rust-binary", default="../../crates/target/release/nemesis-backtest")
+    parser.add_argument("--strategy", choices=list(STRATEGY_MAP.keys()), default="momentum",
+                        help="Strategy class to use")
     args = parser.parse_args()
+
+    if sys.platform == "win32" and not args.rust_binary.endswith(".exe"):
+        args.rust_binary += ".exe"
 
     if not args.tick_file.exists():
         print(f"Tick file not found: {args.tick_file}")
@@ -92,4 +111,5 @@ if __name__ == "__main__":
         bar_type=args.bar_type,
         bar_param=args.bar_param,
         rust_binary=args.rust_binary,
+        strategy_name=args.strategy,
     ))
